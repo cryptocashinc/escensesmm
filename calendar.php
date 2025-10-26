@@ -1,0 +1,36 @@
+<?php
+require_once __DIR__ . '/inc/ui.php';
+[$where,$params]=scope_posts_clause('p');
+$sql = "SELECT t.*, p.title, a.display_name AS acc_name, sp.key_name AS provider
+        FROM smm_post_targets t
+        JOIN smm_posts p ON p.id = t.post_id
+        JOIN social_accounts a ON a.id = t.social_account_id
+        JOIN social_providers sp ON sp.id = a.provider_id
+        WHERE 1=1 {$where}
+        ORDER BY t.schedule_at ASC LIMIT 200";
+$stmt=$pdo->prepare($sql); $stmt->execute($params); $rows=$stmt->fetchAll();
+ui_header('Календарь публикаций','calendar');
+?>
+<div class="card table-wrap">
+  <h2>Календарь</h2>
+  <table>
+    <thead><tr><th>Когда</th><th>Пост</th><th>Канал</th><th>Статус</th><th></th></tr></thead>
+    <tbody>
+    <?php foreach($rows as $r): ?>
+      <tr>
+        <td><?=h($r['schedule_at'])?> (<?=h($r['timezone'])?>)</td>
+        <td><a href="post_edit.php?id=<?= (int)$r['post_id'] ?>"><?=h($r['title'] ?: 'Без названия')?></a></td>
+        <td><?=h($r['provider'])?> · <?=h($r['acc_name'])?></td>
+        <td><?=h($r['result_status'])?></td>
+        <td><?php if($r['result_status']==='queued'): ?>
+          <form action="api/publish_now.php" method="post" style="display:inline">
+            <input type="hidden" name="target_id" value="<?= (int)$r['id'] ?>">
+            <button class="btn" type="submit">Постить</button>
+          </form><?php endif; ?>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+<?php ui_footer(); ?>
